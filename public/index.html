@@ -58,9 +58,10 @@
     .reader-top{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px max(14px,env(safe-area-inset-right)) 10px max(14px,env(safe-area-inset-left));background:var(--reader-bg);border-bottom:1px solid color-mix(in srgb,var(--reader-text) 15%,transparent);position:relative;z-index:2}
     .reader-top strong{font-size:14px;font-weight:700}
     .reader-top .shortcuts{font-size:12px;opacity:.65}
-    .reader-scroller{position:relative;flex:1;min-height:0;overflow:auto;scrollbar-width:none;overscroll-behavior:contain;touch-action:pan-y}
+    .reader-body{position:relative;display:flex;flex:1;min-height:0}
+    .reader-scroller{position:relative;flex:1;min-height:0;overflow:auto;scrollbar-width:none;overscroll-behavior:contain;touch-action:pan-y;scroll-behavior:auto;overflow-anchor:none}
     .reader-scroller::-webkit-scrollbar{display:none}
-    .reader-text{max-width:1100px;width:100%;margin:auto;white-space:pre-wrap;overflow-wrap:anywhere;padding:26vh clamp(24px,7vw,95px) 62vh;text-align:right;font-size:var(--read-size);line-height:1.75;font-weight:600;color:var(--reader-text);direction:rtl}
+    .reader-text{max-width:1100px;width:100%;margin:auto;white-space:pre-wrap;overflow-wrap:anywhere;padding:26vh clamp(24px,7vw,95px) 62vh;padding-block:26dvh 62dvh;text-align:right;font-size:var(--read-size);line-height:1.75;font-weight:600;color:var(--reader-text);direction:rtl}
     .reader-text.mirrored{transform:scaleX(-1)}
     .reader-guide{position:absolute;top:42%;right:0;left:0;border-top:1px dashed var(--reader-rule);opacity:.43;pointer-events:none}
     .reader-bottom{flex:none;background:var(--reader-bg);border-top:1px solid color-mix(in srgb,var(--reader-text) 16%,transparent);padding:9px 14px calc(10px + env(safe-area-inset-bottom));z-index:2}
@@ -117,9 +118,11 @@
 
   <section id="readerScreen" class="reader-screen" hidden aria-label="شاشة قراءة السكريبت">
     <div class="reader-top"><strong>وضع القراءة</strong><span class="shortcuts">لمس النص = توقيف / متابعة</span><button type="button" id="closeReader">✕ خروج</button></div>
+    <div class="reader-body">
     <div id="readerScroller" class="reader-scroller" tabindex="0" aria-label="نص السكريبت القابل للتمرير">
       <div id="readerText" class="reader-text"></div>
-      <div class="reader-guide" aria-hidden="true"></div>
+    </div>
+    <div class="reader-guide" aria-hidden="true"></div>
     </div>
     <div class="reader-bottom">
       <div class="progress-track" role="progressbar" id="progressTrack" aria-label="تقدم القراءة" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar" id="progressBar"></div></div>
@@ -142,12 +145,13 @@
       const storageKey = 'script-reader-ma-v1';
       let saved = {};
       try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}') || {}; } catch(_e) { saved={}; }
+      if(!saved || typeof saved!=='object' || Array.isArray(saved))saved={};
       const state = {
-        speed: clamp(Number(saved.speed), 0, 120, defaults.speed),
-        size: clamp(Number(saved.size), 24, 90, defaults.size),
+        speed: clamp(saved.speed, 0, 120, defaults.speed),
+        size: clamp(saved.size, 24, 90, defaults.size),
         mirror: typeof saved.mirror === 'boolean' ? saved.mirror : defaults.mirror,
         light: typeof saved.light === 'boolean' ? saved.light : defaults.light,
-        playing:false, open:false, raf:null, lastTime:null, wakeLock:null
+        playing:false, open:false, raf:null, lastTime:null, wakeLock:null, wakeVersion:0, position:0, lastScroll:0
       };
       function clamp(number,min,max,fallback){return Number.isFinite(number)?Math.min(max,Math.max(min,number)):fallback;}
       function store(){try{localStorage.setItem(storageKey,JSON.stringify({text:el('scriptInput').value,speed:state.speed,size:state.size,mirror:state.mirror,light:state.light}));}catch(_e){}}
@@ -167,30 +171,55 @@
       function setStatus(s){el('appStatus').textContent=s;}
       function updateProgress(){const max=Math.max(0,el('readerScroller').scrollHeight-el('readerScroller').clientHeight);const pct=max>0?Math.round(el('readerScroller').scrollTop/max*100):100;el('progressBar').style.width=pct+'%';el('progressTrack').setAttribute('aria-valuenow',String(pct));}
       function updateReadUI(){el('playPauseBtn').textContent=state.playing?'⏸ وقف':'▶ كمل';el('readerStatus').textContent=state.playing?'التمرير التلقائي خدام':(state.speed===0?'السرعة صفر — زيد السرعة باش يتحرك النص':'التمرير متوقف مؤقتاً');}
-      async function requestWake(){if(!('wakeLock' in navigator)||!state.open||!state.playing)return;try{state.wakeLock=await navigator.wakeLock.request('screen');}catch(_e){}}
-      function releaseWake(){if(state.wakeLock){state.wakeLock.release().catch(()=>{});state.wakeLock=null;}}
+      async function requestWake(){
+        if(!('wakeLock' in navigator)||!state.open||!state.playing)return;
+        const version=++state.wakeVersion;
+        try{
+          const lock=await navigator.wakeLock.request('screen');
+          if(version!==state.wakeVersion||!state.open||!state.playing){await lock.release();return;}
+          state.wakeLock=lock;
+        }catch(_e){}
+      }
+      function releaseWake(){state.wakeVersion++;if(state.wakeLock){state.wakeLock.release().catch(()=>{});state.wakeLock=null;}}
+      function finish(){pause();el('readerStatus').textContent='وصلتي لآخر السكريبت';}
+
       function frame(t){
+        state.raf=null;
         if(!state.playing||!state.open)return;
-        if(state.lastTime===null){state.lastTime=t;} else {
-          const elapsed=Math.min((t-state.lastTime)/1000,.1);state.lastTime=t;
-          const box=el('readerScroller'),max=box.scrollHeight-box.clientHeight;
-          box.scrollTop=Math.min(max,box.scrollTop+state.speed*elapsed);
-          updateProgress();
-          if(box.scrollTop>=max-1 && max>0){pause();el('readerStatus').textContent='وصلتي لآخر السكريبت';return;}
+        const box=el('readerScroller'),max=Math.max(0,box.scrollHeight-box.clientHeight);
+        // Keep fractional motion independently of scrollTop rounding. Adopt any
+        // manual scroll before advancing so the next frame never jumps back.
+        if(box.scrollTop!==state.lastScroll)state.position=box.scrollTop;
+        state.position=Math.min(max,state.position);
+        if(state.lastTime!==null){
+          const elapsed=Math.max(0,Math.min((t-state.lastTime)/1000,.1));
+          state.position=Math.min(max,state.position+state.speed*elapsed);
         }
+        state.lastTime=t;
+        box.scrollTop=state.position;state.lastScroll=box.scrollTop;
+        updateProgress();
+        if(state.position>=max){finish();return;}
         state.raf=requestAnimationFrame(frame);
       }
-      function play(){if(!state.open)return;if(state.speed===0){setSpeed(20);}if(state.playing)return;state.playing=true;state.lastTime=null;updateReadUI();state.raf=requestAnimationFrame(frame);requestWake();}
+      function play(){
+        if(!state.open||state.playing)return;
+        if(state.speed===0){updateReadUI();return;}
+        const box=el('readerScroller');
+        if(box.scrollTop>=Math.max(0,box.scrollHeight-box.clientHeight)){finish();return;}
+        state.position=box.scrollTop;state.lastScroll=box.scrollTop;
+        state.playing=true;state.lastTime=null;updateReadUI();
+        state.raf=requestAnimationFrame(frame);requestWake();
+      }
       function pause(){state.playing=false;state.lastTime=null;if(state.raf!==null){cancelAnimationFrame(state.raf);state.raf=null;}releaseWake();updateReadUI();}
       function toggle(){state.playing?pause():play();}
       function openReader(){
         const value=el('scriptInput').value;
         if(!value.trim()){setStatus('دخل السكريبت أولاً.');el('scriptInput').focus();return;}
         pause();el('readerText').textContent=value;
-        el('readerScreen').hidden=false;state.open=true;document.body.style.overflow='hidden';
-        syncControls();el('readerScroller').scrollTop=0;updateProgress();el('closeReader').focus({preventScroll:true});play();
+        el('readerScreen').hidden=false;state.open=true;el('editorApp').inert=true;document.body.style.overflow='hidden';
+        syncControls();el('readerScroller').scrollTop=0;updateProgress();el('readerScroller').focus({preventScroll:true});play();
       }
-      function closeReader(){pause();state.open=false;el('readerScreen').hidden=true;document.body.style.overflow='';el('startBtn').focus({preventScroll:true});store();}
+      function closeReader(){pause();state.open=false;el('readerScreen').hidden=true;el('editorApp').inert=false;document.body.style.overflow='';el('startBtn').focus({preventScroll:true});store();}
       el('scriptInput').value=typeof saved.text==='string'?saved.text:defaultText;
       el('scriptInput').addEventListener('input',()=>{updateCount();store();setStatus('');});
       el('exampleBtn').addEventListener('click',()=>{el('scriptInput').value=defaultText;updateCount();store();setStatus('تم وضع نص تجريبي.');});
@@ -210,12 +239,17 @@
       el('restartBtn').addEventListener('click',()=>{pause();el('readerScroller').scrollTop=0;updateProgress();play();});
       el('readerSlower').addEventListener('click',()=>setSpeed(state.speed-4));
       el('readerFaster').addEventListener('click',()=>setSpeed(state.speed+4));
-      el('readerScroller').addEventListener('click',toggle);
+      let pointerStart=null,dragged=false;
+      el('readerScroller').addEventListener('pointerdown',e=>{pointerStart={x:e.clientX,y:e.clientY};dragged=false;});
+      el('readerScroller').addEventListener('pointermove',e=>{if(pointerStart&&Math.hypot(e.clientX-pointerStart.x,e.clientY-pointerStart.y)>8)dragged=true;});
+      el('readerScroller').addEventListener('pointerup',()=>{pointerStart=null;});
+      el('readerScroller').addEventListener('pointercancel',()=>{pointerStart=null;dragged=true;});
+      el('readerScroller').addEventListener('click',()=>{if(!dragged)toggle();dragged=false;});
       el('readerScroller').addEventListener('scroll',updateProgress,{passive:true});
       document.addEventListener('keydown',e=>{
         if(!state.open)return;
         if(e.key==='Escape'){e.preventDefault();closeReader();return;}
-        if(e.code==='Space' && !['BUTTON','TEXTAREA','INPUT'].includes(document.activeElement.tagName)) {e.preventDefault();toggle();}
+        if(e.code==='Space' && !['TEXTAREA','INPUT'].includes(document.activeElement.tagName)) {e.preventDefault();if(!e.repeat)toggle();}
       });
       document.addEventListener('visibilitychange',()=>{if(document.hidden && state.playing)pause();});
       window.addEventListener('pagehide',()=>{pause();store();});

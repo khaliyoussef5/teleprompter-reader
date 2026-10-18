@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "قارئ السكريبت بالتمرير التلقائي والتحكم في السرعة",
   "scripts": {
-    "test": "node tests/smoke-test.mjs",
+    "test": "node tests/smoke-test.mjs && node --test tests/*.test.mjs",
     "build": "npm test"
   }
 }

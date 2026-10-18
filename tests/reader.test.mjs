@@ -205,3 +205,14 @@ test('focus preference persists and works with mirror/light and live speed', () 
   assert(reloaded.node('readerText').classList.contains('mirrored'));
   assert.equal(reloaded.node('speedRange').value, 160);
 });
+
+test('reader keeps Focus Mode without a distracting guide line', () => {
+  assert(!html.includes('reader-guide'), 'Reading guide must not overlay the text');
+  assert(html.includes('.reader-screen.focus-on .reader-scroller'));
+  const r = reader();
+  r.click('startBtn');
+  assert(r.node('readerScreen').classList.contains('focus-on'));
+  assert.equal(r.node('readerSpeedRange').value, 30);
+  r.tick(61);
+  assert(r.node('readerScroller').scrollTop > 0);
+});

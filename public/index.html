@@ -73,9 +73,13 @@
     .reader-buttons .play{background:#48d0ac;color:#032820;border:0;font-weight:800;min-width:108px}
     .reader-buttons button:focus-visible,.reader-top button:focus-visible{outline:2px solid #45c9a8}
     .read-speed{min-width:64px;font-size:13px;text-align:center;white-space:nowrap;color:var(--reader-text)}
+    .reader-speed-control{display:flex;align-items:center;gap:12px;max-width:730px;margin:0 auto 8px}
+    .reader-speed-control label{font-size:13px;font-weight:650;white-space:nowrap;flex:none}
+    .reader-speed-control input[type=range]{flex:1;min-width:75px;height:38px;touch-action:pan-x}
+    .reader-speed-control output{font-size:13px;min-width:83px;padding:5px 7px}
     .reader-status{font-size:12px;opacity:.65;text-align:center;margin-top:6px}
     @media (max-width:780px){.main-grid{grid-template-columns:1fr}.container{padding-top:20px}.pill{display:none}.card{padding:18px}.reader-text{font-size:var(--read-size)}textarea{height:280px}}
-    @media (max-width:420px){header{margin-bottom:16px}.brand-mark{width:44px;height:44px}h1{font-size:21px}.reader-top .shortcuts{display:none}.reader-buttons{gap:6px}.reader-buttons button{padding:10px 11px}.read-speed{display:none}.primary{width:100%}}
+    @media (max-width:420px){header{margin-bottom:16px}.brand-mark{width:44px;height:44px}h1{font-size:21px}.reader-top .shortcuts{display:none}.reader-buttons{gap:6px}.reader-buttons button{padding:10px 11px}.read-speed{font-size:12px;min-width:54px}.reader-speed-control{gap:8px}.reader-speed-control label{font-size:12px}.reader-speed-control output{min-width:76px;font-size:12px}.primary{width:100%}}
     @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
   </style>
 </head>
@@ -97,8 +101,8 @@
         <div class="card-heading"><h2>إعدادات القراءة</h2><span class="secondary">يمكن تغييرها حتى أثناء القراءة</span></div>
         <div class="control-group">
           <div class="label-row"><label for="speedRange">سرعة التمرير التلقائي</label><output for="speedRange" id="speedOutput">30</output></div>
-          <div class="range-row"><button type="button" class="stepper" id="speedDown" aria-label="نقص السرعة">−</button><input type="range" id="speedRange" min="0" max="120" step="2" value="30"><button type="button" class="stepper" id="speedUp" aria-label="زيد السرعة">+</button></div>
-          <p class="help">0 = متوقف · 20 بطيئة · 50 متوسطة · 90 سريعة</p>
+          <div class="range-row"><button type="button" class="stepper" id="speedDown" aria-label="نقص السرعة">−</button><input type="range" id="speedRange" min="0" max="240" step="2" value="30"><button type="button" class="stepper" id="speedUp" aria-label="زيد السرعة">+</button></div>
+          <p class="help">0 = متوقف · 30 بطيئة · 80 متوسطة · 160 سريعة · 240 قصوى</p>
         </div>
         <div class="control-group">
           <div class="label-row"><label for="sizeRange">حجم الكتابة</label><output for="sizeRange" id="sizeOutput">44 px</output></div>
@@ -125,6 +129,7 @@
     <div class="reader-guide" aria-hidden="true"></div>
     </div>
     <div class="reader-bottom">
+      <div class="reader-speed-control"><label for="readerSpeedRange">سرعة القراءة</label><input type="range" id="readerSpeedRange" min="0" max="240" step="2" value="30" aria-label="تحكم مباشر في سرعة التمرير أثناء القراءة"><output for="readerSpeedRange" id="readerSpeedOutput">30 px/s</output></div>
       <div class="progress-track" role="progressbar" id="progressTrack" aria-label="تقدم القراءة" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar" id="progressBar"></div></div>
       <div class="reader-buttons">
         <button type="button" id="restartBtn" aria-label="رجع لأول النص">↺ من الأول</button>
@@ -147,7 +152,7 @@
       try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}') || {}; } catch(_e) { saved={}; }
       if(!saved || typeof saved!=='object' || Array.isArray(saved))saved={};
       const state = {
-        speed: clamp(saved.speed, 0, 120, defaults.speed),
+        speed: clamp(saved.speed, 0, 240, defaults.speed),
         size: clamp(saved.size, 24, 90, defaults.size),
         mirror: typeof saved.mirror === 'boolean' ? saved.mirror : defaults.mirror,
         light: typeof saved.light === 'boolean' ? saved.light : defaults.light,
@@ -158,7 +163,8 @@
       function updateCount(){const len=el('scriptInput').value.length;el('scriptCount').textContent=len.toLocaleString('ar-MA')+' حرف';el('startBtn').disabled=!el('scriptInput').value.trim();}
       function syncControls(){
         el('speedRange').value=state.speed;el('speedOutput').textContent=String(state.speed);
-        el('readerSpeedValue').textContent=state.speed+' / 120';
+        el('readerSpeedRange').value=state.speed;el('readerSpeedOutput').textContent=state.speed+' px/s';
+        el('readerSpeedValue').textContent=state.speed+' / 240';
         el('sizeRange').value=state.size;el('sizeOutput').textContent=state.size+' px';
         el('mirrorInput').checked=state.mirror;el('lightInput').checked=state.light;
         el('readerText').style.setProperty('--read-size',state.size+'px');
@@ -166,7 +172,7 @@
         el('readerScreen').classList.toggle('light',state.light);
         store();
       }
-      function setSpeed(n){state.speed=Math.round(clamp(n,0,120,30)/2)*2;syncControls();if(state.open && state.playing && state.speed===0){pause();}}
+      function setSpeed(n){const wasZero=state.speed===0;state.speed=Math.round(clamp(n,0,240,30)/2)*2;syncControls();if(state.open && state.playing && state.speed===0){pause();}else if(state.open && wasZero && state.speed>0 && !state.playing){play();}else if(state.open && !state.playing){updateReadUI();}}
       function setSize(n){state.size=Math.round(clamp(n,24,90,44)/2)*2;syncControls();if(state.open)updateProgress();}
       function setStatus(s){el('appStatus').textContent=s;}
       function updateProgress(){const max=Math.max(0,el('readerScroller').scrollHeight-el('readerScroller').clientHeight);const pct=max>0?Math.round(el('readerScroller').scrollTop/max*100):100;el('progressBar').style.width=pct+'%';el('progressTrack').setAttribute('aria-valuenow',String(pct));}
@@ -237,8 +243,9 @@
       el('closeReader').addEventListener('click',closeReader);
       el('playPauseBtn').addEventListener('click',toggle);
       el('restartBtn').addEventListener('click',()=>{pause();el('readerScroller').scrollTop=0;updateProgress();play();});
-      el('readerSlower').addEventListener('click',()=>setSpeed(state.speed-4));
-      el('readerFaster').addEventListener('click',()=>setSpeed(state.speed+4));
+      el('readerSlower').addEventListener('click',()=>setSpeed(state.speed-20));
+      el('readerFaster').addEventListener('click',()=>setSpeed(state.speed+20));
+      el('readerSpeedRange').addEventListener('input',e=>setSpeed(Number(e.target.value)));
       let pointerStart=null,dragged=false;
       el('readerScroller').addEventListener('pointerdown',e=>{pointerStart={x:e.clientX,y:e.clientY};dragged=false;});
       el('readerScroller').addEventListener('pointermove',e=>{if(pointerStart&&Math.hypot(e.clientX-pointerStart.x,e.clientY-pointerStart.y)>8)dragged=true;});

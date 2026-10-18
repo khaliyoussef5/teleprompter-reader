@@ -129,3 +129,42 @@ test('a wake lock arriving after pause is released', async () => {
   r.click('startBtn'); r.click('playPauseBtn'); resolve({ release: async () => { releases++; } });
   await new Promise(r => setImmediate(r)); assert.equal(releases, 1);
 });
+
+test('reader speed slider and +/- buttons change live scroll speed noticeably', () => {
+  const r = reader();
+  r.click('startBtn'); r.tick(61);
+  const start = r.node('readerScroller').scrollTop;
+  assert(Math.abs(start - 30) <= 1);
+  r.click('readerFaster');
+  assert.equal(r.node('readerSpeedRange').value, 50);
+  assert.equal(r.node('readerSpeedOutput').textContent, '50 px/s');
+  r.tick(61);
+  assert(Math.abs(r.node('readerScroller').scrollTop - start - 50) <= 1);
+  const next = r.node('readerScroller').scrollTop;
+  r.input('readerSpeedRange', '180');
+  assert.equal(r.node('speedRange').value, 180);
+  assert.equal(r.node('readerSpeedOutput').textContent, '180 px/s');
+  r.tick(61);
+  assert(Math.abs(r.node('readerScroller').scrollTop - next - 180) <= 1);
+});
+
+test('speed zero stops, restoring speed restarts, manual pause stays paused', () => {
+  const r = reader();
+  r.click('startBtn');
+  r.input('readerSpeedRange', '0');
+  assert.equal(r.frames.size, 0);
+  r.input('readerSpeedRange', '80');
+  assert.equal(r.frames.size, 1);
+  r.tick(61);
+  assert(Math.abs(r.node('readerScroller').scrollTop - 80) <= 1);
+  r.click('playPauseBtn');
+  r.input('readerSpeedRange', '220');
+  assert.equal(r.frames.size, 0);
+  assert.equal(r.node('readerSpeedRange').value, 220);
+});
+
+test('reader speed remains visible on compact screens', () => {
+  assert(html.includes('id="readerSpeedRange"'));
+  assert(html.includes('id="readerSpeedOutput"'));
+  assert(!html.includes('.read-speed{display:none}'));
+});

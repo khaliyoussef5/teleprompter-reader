@@ -64,6 +64,15 @@
     .reader-text{max-width:1100px;width:100%;margin:auto;white-space:pre-wrap;overflow-wrap:anywhere;padding:26vh clamp(24px,7vw,95px) 62vh;padding-block:26dvh 62dvh;text-align:right;font-size:var(--read-size);line-height:1.75;font-weight:600;color:var(--reader-text);direction:rtl}
     .reader-text.mirrored{transform:scaleX(-1)}
     .reader-guide{position:absolute;top:42%;right:0;left:0;border-top:1px dashed var(--reader-rule);opacity:.43;pointer-events:none}
+    /* Focus Mode uses a viewport-fixed soft mask: readable around the 42% guide,
+       muted above and below it. It works with RTL, mirror and either theme. */
+    .reader-screen.focus-on .reader-scroller{
+      -webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,.34) 0%,rgba(0,0,0,.34) 20%,rgba(0,0,0,.7) 31%,#000 37%,#000 49%,rgba(0,0,0,.7) 59%,rgba(0,0,0,.34) 72%,rgba(0,0,0,.34) 100%);
+      mask-image:linear-gradient(to bottom,rgba(0,0,0,.34) 0%,rgba(0,0,0,.34) 20%,rgba(0,0,0,.7) 31%,#000 37%,#000 49%,rgba(0,0,0,.7) 59%,rgba(0,0,0,.34) 72%,rgba(0,0,0,.34) 100%);
+    }
+    .reader-screen.focus-on .reader-guide{border-top:2px solid var(--reader-rule);opacity:.85}
+    .reader-top-actions{display:flex;align-items:center;gap:7px;flex:none}
+    .reader-top .focus-toggle[aria-pressed="true"]{border-color:var(--reader-rule);background:color-mix(in srgb,var(--reader-rule) 22%,var(--reader-bg));font-weight:700}
     .reader-bottom{flex:none;background:var(--reader-bg);border-top:1px solid color-mix(in srgb,var(--reader-text) 16%,transparent);padding:9px 14px calc(10px + env(safe-area-inset-bottom));z-index:2}
     .progress-track{height:4px;background:#73819540;border-radius:4px;overflow:hidden;margin:0 0 10px}
     .progress-bar{height:100%;width:0;background:#3ac7a6;transition:width .12s linear}
@@ -110,6 +119,8 @@
         </div>
         <div class="control-group">
           <div class="setting-row"><label for="mirrorInput">عكس النص أفقياً (للمرآة)</label><input type="checkbox" id="mirrorInput"></div>
+          <div class="setting-row"><label for="focusInput">وضع التركيز: وضّح النص قرب خط القراءة</label><input type="checkbox" id="focusInput" checked></div>
+          <p class="help">وضع التركيز كيخفّف النص البعيد عن خط القراءة بلا ما يبدّل سرعة التمرير.</p>
           <div class="setting-row"><label for="lightInput">خلفية فاتحة أثناء القراءة</label><input type="checkbox" id="lightInput"></div>
           <p class="help">الوضع الافتراضي: خلفية سوداء ونص أبيض باش تكون القراءة مريحة.</p>
         </div>
@@ -121,7 +132,7 @@
   </main>
 
   <section id="readerScreen" class="reader-screen" hidden aria-label="شاشة قراءة السكريبت">
-    <div class="reader-top"><strong>وضع القراءة</strong><span class="shortcuts">لمس النص = توقيف / متابعة</span><button type="button" id="closeReader">✕ خروج</button></div>
+    <div class="reader-top"><strong>وضع القراءة</strong><span class="shortcuts">لمس النص = توقيف / متابعة</span><div class="reader-top-actions"><button type="button" id="focusToggleBtn" class="focus-toggle" aria-pressed="true" aria-label="إيقاف وضع التركيز">◎ تركيز ✓</button><button type="button" id="closeReader">✕ خروج</button></div></div>
     <div class="reader-body">
     <div id="readerScroller" class="reader-scroller" tabindex="0" aria-label="نص السكريبت القابل للتمرير">
       <div id="readerText" class="reader-text"></div>
@@ -146,7 +157,7 @@
       'use strict';
       const el = id => document.getElementById(id);
       const defaultText = 'السلام عليكم.\n\nفهاد الفيديو غادي نشرح ليكم واحد الفكرة بطريقة بسيطة وواضحة.\n\nأول حاجة، غادي نبداو بالمعلومة الأساسية.\nومن بعد غادي نشوفو مثال عملي باش نفهموها مزيان.\n\nدابا، ركّزو معايا فهاد النقطة...\n\nوفالأخير، غادي نراجعو أهم حاجة خاصنا نتذكروها.\n\nشكراً على المتابعة.';
-      const defaults = { speed:30, size:44, mirror:false, light:false };
+      const defaults = { speed:30, size:44, mirror:false, light:false, focus:true };
       const storageKey = 'script-reader-ma-v1';
       let saved = {};
       try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}') || {}; } catch(_e) { saved={}; }
@@ -156,20 +167,25 @@
         size: clamp(saved.size, 24, 90, defaults.size),
         mirror: typeof saved.mirror === 'boolean' ? saved.mirror : defaults.mirror,
         light: typeof saved.light === 'boolean' ? saved.light : defaults.light,
+        focus: typeof saved.focus === 'boolean' ? saved.focus : defaults.focus,
         playing:false, open:false, raf:null, lastTime:null, wakeLock:null, wakeVersion:0, position:0, lastScroll:0
       };
       function clamp(number,min,max,fallback){return Number.isFinite(number)?Math.min(max,Math.max(min,number)):fallback;}
-      function store(){try{localStorage.setItem(storageKey,JSON.stringify({text:el('scriptInput').value,speed:state.speed,size:state.size,mirror:state.mirror,light:state.light}));}catch(_e){}}
+      function store(){try{localStorage.setItem(storageKey,JSON.stringify({text:el('scriptInput').value,speed:state.speed,size:state.size,mirror:state.mirror,light:state.light,focus:state.focus}));}catch(_e){}}
       function updateCount(){const len=el('scriptInput').value.length;el('scriptCount').textContent=len.toLocaleString('ar-MA')+' حرف';el('startBtn').disabled=!el('scriptInput').value.trim();}
       function syncControls(){
         el('speedRange').value=state.speed;el('speedOutput').textContent=String(state.speed);
         el('readerSpeedRange').value=state.speed;el('readerSpeedOutput').textContent=state.speed+' px/s';
         el('readerSpeedValue').textContent=state.speed+' / 240';
         el('sizeRange').value=state.size;el('sizeOutput').textContent=state.size+' px';
-        el('mirrorInput').checked=state.mirror;el('lightInput').checked=state.light;
+        el('mirrorInput').checked=state.mirror;el('lightInput').checked=state.light;el('focusInput').checked=state.focus;
         el('readerText').style.setProperty('--read-size',state.size+'px');
         el('readerText').classList.toggle('mirrored',state.mirror);
         el('readerScreen').classList.toggle('light',state.light);
+        el('readerScreen').classList.toggle('focus-on',state.focus);
+        el('focusToggleBtn').setAttribute('aria-pressed',String(state.focus));
+        el('focusToggleBtn').setAttribute('aria-label',state.focus?'إيقاف وضع التركيز':'تشغيل وضع التركيز');
+        el('focusToggleBtn').textContent=state.focus?'◎ تركيز ✓':'◎ تركيز';
         store();
       }
       function setSpeed(n){const wasZero=state.speed===0;state.speed=Math.round(clamp(n,0,240,30)/2)*2;syncControls();if(state.open && state.playing && state.speed===0){pause();}else if(state.open && wasZero && state.speed>0 && !state.playing){play();}else if(state.open && !state.playing){updateReadUI();}}
@@ -238,6 +254,8 @@
       el('sizeUp').addEventListener('click',()=>setSize(state.size+2));
       el('mirrorInput').addEventListener('change',e=>{state.mirror=e.target.checked;syncControls();});
       el('lightInput').addEventListener('change',e=>{state.light=e.target.checked;syncControls();});
+      el('focusInput').addEventListener('change',e=>{state.focus=e.target.checked;syncControls();});
+      el('focusToggleBtn').addEventListener('click',()=>{state.focus=!state.focus;syncControls();});
       el('resetPrefsBtn').addEventListener('click',()=>{Object.assign(state,defaults);syncControls();setStatus('رجعات الإعدادات الافتراضية، والسكريبت بقى كيف ما هو.');});
       el('startBtn').addEventListener('click',openReader);
       el('closeReader').addEventListener('click',closeReader);

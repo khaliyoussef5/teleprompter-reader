@@ -144,7 +144,8 @@ test('reader speed slider and +/- buttons change live scroll speed noticeably', 
   r.input('readerSpeedRange', '180');
   assert.equal(r.node('speedRange').value, 180);
   assert.equal(r.node('readerSpeedOutput').textContent, '180 px/s');
-  r.tick(61);
+  // The animation clock is already running: 60 frames = one second.
+  r.tick(60);
   assert(Math.abs(r.node('readerScroller').scrollTop - next - 180) <= 1);
 });
 

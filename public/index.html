@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0c1220">
+  <meta name="description" content="تطبيق قراءة السكريبت بالتمرير التلقائي والتحكم بسرعة عرض النص.">
+  <title>قارئ السكريبت | Teleprompter</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;color-scheme:dark;--bg:#0b1020;--surface:#151e32;--panel:#1a263b;--line:#2b3b52;--text:#f3f6fd;--muted:#a7b5ca;--accent:#50d1b0;--accent-2:#1a685e;--read-size:44px}
+    *{box-sizing:border-box}
+    body{margin:0;min-width:280px;background:radial-gradient(circle at 20% -10%,#1d3347 0,#0b1020 48%);color:var(--text)}
+    button,input,textarea{font:inherit}
+    button{cursor:pointer}
+    button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+    button:disabled{opacity:.45;cursor:not-allowed}
+    .container{width:min(1140px,100% - 32px);margin:auto;padding:24px 0 40px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:24px}
+    .brand{display:flex;align-items:center;gap:13px}
+    .brand-mark{width:49px;height:49px;border-radius:15px;display:grid;place-items:center;font-weight:900;background:linear-gradient(135deg,#36b89e,#126158);color:white;font-size:20px;direction:ltr}
+    .eyebrow{margin:0 0 2px;color:var(--accent);font-size:12px;font-weight:700;letter-spacing:.09em;direction:ltr;text-align:right}
+    h1{margin:0;font-size:25px;line-height:1.3}
+    .pill{border:1px solid var(--line);background:#142237;padding:8px 13px;border-radius:100px;color:#bccbda;font-size:12px;white-space:nowrap}
+    .intro{margin:0 0 23px;color:var(--muted);line-height:1.9;font-size:15px}
+    .main-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(290px,1fr);gap:18px;align-items:start}
+    .card{border:1px solid var(--line);border-radius:21px;background:linear-gradient(145deg,#18243a,#111a2b);padding:22px;min-width:0}
+    .card-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:15px}
+    h2{font-size:18px;margin:0}
+    .secondary{color:var(--muted);font-size:13px}
+    textarea{display:block;width:100%;height:365px;resize:vertical;border:1px solid #39506a;border-radius:14px;background:#0e1829;color:#edf5ff;padding:18px 17px;line-height:1.95;font-size:17px;direction:rtl;outline:0}
+    textarea::placeholder{color:#7e91a8}
+    .editor-foot{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-top:11px;color:var(--muted);font-size:13px}
+    .linkbtn{border:0;background:transparent;color:#7fecd2;padding:8px;text-decoration:underline;text-underline-offset:4px}
+    .control-group{padding:16px 0;border-bottom:1px solid var(--line)}
+    .control-group:first-of-type{padding-top:4px}
+    .control-group:last-of-type{border:0;padding-bottom:0}
+    .label-row{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:15px;font-weight:650;margin-bottom:13px}
+    output{color:var(--accent);background:#0c2b30;border:1px solid #20544e;padding:5px 10px;border-radius:9px;font-variant-numeric:tabular-nums;min-width:68px;text-align:center;white-space:nowrap}
+    .range-row{display:flex;align-items:center;gap:12px}
+    input[type=range]{accent-color:var(--accent);width:100%;height:34px;cursor:pointer;min-width:0}
+    .stepper{background:#25354a;border:1px solid #3b526c;border-radius:11px;color:var(--text);min-width:43px;min-height:43px;font-size:22px;font-weight:600;line-height:1}
+    .stepper:active{background:#3c5771}
+    .help{color:var(--muted);font-size:12px;line-height:1.7;margin:8px 0 0}
+    .setting-row{display:flex;justify-content:space-between;align-items:center;gap:13px;padding:12px 0;flex-wrap:wrap}
+    .setting-row label{display:flex;gap:10px;align-items:center;font-size:14px;cursor:pointer}
+    .setting-row input[type=checkbox]{width:19px;height:19px;accent-color:var(--accent)}
+    .actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:21px 0 0}
+    .primary{border:0;background:var(--accent);border-radius:14px;color:#06271f;font-weight:800;padding:15px 24px;min-height:52px;font-size:16px}
+    .primary:hover{background:#70e4c4}
+    .soft-btn{border:1px solid #39506a;background:#172438;color:#d9e5f4;border-radius:13px;min-height:48px;padding:12px 17px;font-weight:600}
+    .tip{color:var(--muted);font-size:13px;line-height:1.8;margin:14px 0 0}
+    .status{color:#95f0d6;font-size:13px;min-height:18px;margin-top:10px}
+    /* Reader */
+    .reader-screen[hidden]{display:none!important}
+    .reader-screen{position:fixed;inset:0;z-index:1000;background:#05070b;color:white;display:flex;flex-direction:column;--reader-bg:#05070b;--reader-text:#f8fafc;--reader-rule:#4bd0ad}
+    .reader-screen.light{--reader-bg:#fcfdfd;--reader-text:#142032;--reader-rule:#197e70}
+    .reader-screen{background:var(--reader-bg);color:var(--reader-text)}
+    .reader-top{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px max(14px,env(safe-area-inset-right)) 10px max(14px,env(safe-area-inset-left));background:var(--reader-bg);border-bottom:1px solid color-mix(in srgb,var(--reader-text) 15%,transparent);position:relative;z-index:2}
+    .reader-top strong{font-size:14px;font-weight:700}
+    .reader-top .shortcuts{font-size:12px;opacity:.65}
+    .reader-scroller{position:relative;flex:1;min-height:0;overflow:auto;scrollbar-width:none;overscroll-behavior:contain;touch-action:pan-y}
+    .reader-scroller::-webkit-scrollbar{display:none}
+    .reader-text{max-width:1100px;width:100%;margin:auto;white-space:pre-wrap;overflow-wrap:anywhere;padding:26vh clamp(24px,7vw,95px) 62vh;text-align:right;font-size:var(--read-size);line-height:1.75;font-weight:600;color:var(--reader-text);direction:rtl}
+    .reader-text.mirrored{transform:scaleX(-1)}
+    .reader-guide{position:absolute;top:42%;right:0;left:0;border-top:1px dashed var(--reader-rule);opacity:.43;pointer-events:none}
+    .reader-bottom{flex:none;background:var(--reader-bg);border-top:1px solid color-mix(in srgb,var(--reader-text) 16%,transparent);padding:9px 14px calc(10px + env(safe-area-inset-bottom));z-index:2}
+    .progress-track{height:4px;background:#73819540;border-radius:4px;overflow:hidden;margin:0 0 10px}
+    .progress-bar{height:100%;width:0;background:#3ac7a6;transition:width .12s linear}
+    .reader-buttons{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap}
+    .reader-buttons button,.reader-top button{border:1px solid #6073876b;background:color-mix(in srgb,var(--reader-text) 9%,var(--reader-bg));color:var(--reader-text);padding:10px 13px;border-radius:12px;min-height:43px;font-size:14px}
+    .reader-buttons button{white-space:nowrap}
+    .reader-buttons .play{background:#48d0ac;color:#032820;border:0;font-weight:800;min-width:108px}
+    .reader-buttons button:focus-visible,.reader-top button:focus-visible{outline:2px solid #45c9a8}
+    .read-speed{min-width:64px;font-size:13px;text-align:center;white-space:nowrap;color:var(--reader-text)}
+    .reader-status{font-size:12px;opacity:.65;text-align:center;margin-top:6px}
+    @media (max-width:780px){.main-grid{grid-template-columns:1fr}.container{padding-top:20px}.pill{display:none}.card{padding:18px}.reader-text{font-size:var(--read-size)}textarea{height:280px}}
+    @media (max-width:420px){header{margin-bottom:16px}.brand-mark{width:44px;height:44px}h1{font-size:21px}.reader-top .shortcuts{display:none}.reader-buttons{gap:6px}.reader-buttons button{padding:10px 11px}.read-speed{display:none}.primary{width:100%}}
+    @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+  </style>
+</head>
+<body>
+  <main class="container" id="editorApp">
+    <header>
+      <div class="brand"><div class="brand-mark" aria-hidden="true">▶</div><div><div class="eyebrow">SCRIPT READER / TELEPROMPTER</div><h1>قارئ السكريبت</h1></div></div>
+      <span class="pill">كيخدم بلا إنترنت من بعد فتح الملف</span>
+    </header>
+    <p class="intro">لصق السكريبت، حدّد السرعة وحجم الخط، وبدا القراءة بتمرير تلقائي. تقدر توقف وتكمل فاللحظة اللي بغيتي.</p>
+    <section class="main-grid" aria-label="محرر السكريبت والإعدادات">
+      <article class="card">
+        <div class="card-heading"><h2>السكريبت ديالك</h2><span class="secondary">بالعربية، الدارجة أو أي لغة</span></div>
+        <label for="scriptInput" class="secondary" style="display:block;margin-bottom:10px">النص اللي غادي تقراه</label>
+        <textarea id="scriptInput" spellcheck="false" aria-describedby="scriptCount" placeholder="لصق السكريبت ديالك هنا..."></textarea>
+        <div class="editor-foot"><span id="scriptCount">0 حرف</span><div><button type="button" class="linkbtn" id="exampleBtn">نص تجريبي</button><button type="button" class="linkbtn" id="clearBtn">مسح النص</button></div></div>
+      </article>
+      <aside class="card" aria-label="إعدادات العرض">
+        <div class="card-heading"><h2>إعدادات القراءة</h2><span class="secondary">يمكن تغييرها حتى أثناء القراءة</span></div>
+        <div class="control-group">
+          <div class="label-row"><label for="speedRange">سرعة التمرير التلقائي</label><output for="speedRange" id="speedOutput">30</output></div>
+          <div class="range-row"><button type="button" class="stepper" id="speedDown" aria-label="نقص السرعة">−</button><input type="range" id="speedRange" min="0" max="120" step="2" value="30"><button type="button" class="stepper" id="speedUp" aria-label="زيد السرعة">+</button></div>
+          <p class="help">0 = متوقف · 20 بطيئة · 50 متوسطة · 90 سريعة</p>
+        </div>
+        <div class="control-group">
+          <div class="label-row"><label for="sizeRange">حجم الكتابة</label><output for="sizeRange" id="sizeOutput">44 px</output></div>
+          <div class="range-row"><button type="button" class="stepper" id="sizeDown" aria-label="نقص حجم الخط">−</button><input type="range" id="sizeRange" min="24" max="90" step="2" value="44"><button type="button" class="stepper" id="sizeUp" aria-label="كبر حجم الخط">+</button></div>
+        </div>
+        <div class="control-group">
+          <div class="setting-row"><label for="mirrorInput">عكس النص أفقياً (للمرآة)</label><input type="checkbox" id="mirrorInput"></div>
+          <div class="setting-row"><label for="lightInput">خلفية فاتحة أثناء القراءة</label><input type="checkbox" id="lightInput"></div>
+          <p class="help">الوضع الافتراضي: خلفية سوداء ونص أبيض باش تكون القراءة مريحة.</p>
+        </div>
+      </aside>
+    </section>
+    <div class="actions"><button type="button" class="primary" id="startBtn">▶ بدا القراءة</button><button type="button" class="soft-btn" id="resetPrefsBtn">رجّع الإعدادات الافتراضية</button></div>
+    <p class="status" id="appStatus" role="status" aria-live="polite"></p>
+    <p class="tip">النص والإعدادات كيتحفظو تلقائياً فهاد المتصفح (إلا كان التخزين متاح). أثناء القراءة: لمس النص للتوقيف أو الاستئناف، ومسافة Space فالكمبيوتر لنفس العملية.</p>
+  </main>
+
+  <section id="readerScreen" class="reader-screen" hidden aria-label="شاشة قراءة السكريبت">
+    <div class="reader-top"><strong>وضع القراءة</strong><span class="shortcuts">لمس النص = توقيف / متابعة</span><button type="button" id="closeReader">✕ خروج</button></div>
+    <div id="readerScroller" class="reader-scroller" tabindex="0" aria-label="نص السكريبت القابل للتمرير">
+      <div id="readerText" class="reader-text"></div>
+      <div class="reader-guide" aria-hidden="true"></div>
+    </div>
+    <div class="reader-bottom">
+      <div class="progress-track" role="progressbar" id="progressTrack" aria-label="تقدم القراءة" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar" id="progressBar"></div></div>
+      <div class="reader-buttons">
+        <button type="button" id="restartBtn" aria-label="رجع لأول النص">↺ من الأول</button>
+        <button type="button" id="readerSlower" aria-label="نقص سرعة التمرير">− السرعة</button>
+        <button type="button" class="play" id="playPauseBtn">⏸ وقف</button>
+        <button type="button" id="readerFaster" aria-label="زيد سرعة التمرير">+ السرعة</button>
+        <span class="read-speed" id="readerSpeedValue">30</span>
+      </div>
+      <div class="reader-status" id="readerStatus" aria-live="polite">التمرير خدام</div>
+    </div>
+  </section>
+  <script>
+    (() => {
+      'use strict';
+      const el = id => document.getElementById(id);
+      const defaultText = 'السلام عليكم.\n\nفهاد الفيديو غادي نشرح ليكم واحد الفكرة بطريقة بسيطة وواضحة.\n\nأول حاجة، غادي نبداو بالمعلومة الأساسية.\nومن بعد غادي نشوفو مثال عملي باش نفهموها مزيان.\n\nدابا، ركّزو معايا فهاد النقطة...\n\nوفالأخير، غادي نراجعو أهم حاجة خاصنا نتذكروها.\n\nشكراً على المتابعة.';
+      const defaults = { speed:30, size:44, mirror:false, light:false };
+      const storageKey = 'script-reader-ma-v1';
+      let saved = {};
+      try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}') || {}; } catch(_e) { saved={}; }
+      const state = {
+        speed: clamp(Number(saved.speed), 0, 120, defaults.speed),
+        size: clamp(Number(saved.size), 24, 90, defaults.size),
+        mirror: typeof saved.mirror === 'boolean' ? saved.mirror : defaults.mirror,
+        light: typeof saved.light === 'boolean' ? saved.light : defaults.light,
+        playing:false, open:false, raf:null, lastTime:null, wakeLock:null
+      };
+      function clamp(number,min,max,fallback){return Number.isFinite(number)?Math.min(max,Math.max(min,number)):fallback;}
+      function store(){try{localStorage.setItem(storageKey,JSON.stringify({text:el('scriptInput').value,speed:state.speed,size:state.size,mirror:state.mirror,light:state.light}));}catch(_e){}}
+      function updateCount(){const len=el('scriptInput').value.length;el('scriptCount').textContent=len.toLocaleString('ar-MA')+' حرف';el('startBtn').disabled=!el('scriptInput').value.trim();}
+      function syncControls(){
+        el('speedRange').value=state.speed;el('speedOutput').textContent=String(state.speed);
+        el('readerSpeedValue').textContent=state.speed+' / 120';
+        el('sizeRange').value=state.size;el('sizeOutput').textContent=state.size+' px';
+        el('mirrorInput').checked=state.mirror;el('lightInput').checked=state.light;
+        el('readerText').style.setProperty('--read-size',state.size+'px');
+        el('readerText').classList.toggle('mirrored',state.mirror);
+        el('readerScreen').classList.toggle('light',state.light);
+        store();
+      }
+      function setSpeed(n){state.speed=Math.round(clamp(n,0,120,30)/2)*2;syncControls();if(state.open && state.playing && state.speed===0){pause();}}
+      function setSize(n){state.size=Math.round(clamp(n,24,90,44)/2)*2;syncControls();if(state.open)updateProgress();}
+      function setStatus(s){el('appStatus').textContent=s;}
+      function updateProgress(){const max=Math.max(0,el('readerScroller').scrollHeight-el('readerScroller').clientHeight);const pct=max>0?Math.round(el('readerScroller').scrollTop/max*100):100;el('progressBar').style.width=pct+'%';el('progressTrack').setAttribute('aria-valuenow',String(pct));}
+      function updateReadUI(){el('playPauseBtn').textContent=state.playing?'⏸ وقف':'▶ كمل';el('readerStatus').textContent=state.playing?'التمرير التلقائي خدام':(state.speed===0?'السرعة صفر — زيد السرعة باش يتحرك النص':'التمرير متوقف مؤقتاً');}
+      async function requestWake(){if(!('wakeLock' in navigator)||!state.open||!state.playing)return;try{state.wakeLock=await navigator.wakeLock.request('screen');}catch(_e){}}
+      function releaseWake(){if(state.wakeLock){state.wakeLock.release().catch(()=>{});state.wakeLock=null;}}
+      function frame(t){
+        if(!state.playing||!state.open)return;
+        if(state.lastTime===null){state.lastTime=t;} else {
+          const elapsed=Math.min((t-state.lastTime)/1000,.1);state.lastTime=t;
+          const box=el('readerScroller'),max=box.scrollHeight-box.clientHeight;
+          box.scrollTop=Math.min(max,box.scrollTop+state.speed*elapsed);
+          updateProgress();
+          if(box.scrollTop>=max-1 && max>0){pause();el('readerStatus').textContent='وصلتي لآخر السكريبت';return;}
+        }
+        state.raf=requestAnimationFrame(frame);
+      }
+      function play(){if(!state.open)return;if(state.speed===0){setSpeed(20);}if(state.playing)return;state.playing=true;state.lastTime=null;updateReadUI();state.raf=requestAnimationFrame(frame);requestWake();}
+      function pause(){state.playing=false;state.lastTime=null;if(state.raf!==null){cancelAnimationFrame(state.raf);state.raf=null;}releaseWake();updateReadUI();}
+      function toggle(){state.playing?pause():play();}
+      function openReader(){
+        const value=el('scriptInput').value;
+        if(!value.trim()){setStatus('دخل السكريبت أولاً.');el('scriptInput').focus();return;}
+        pause();el('readerText').textContent=value;
+        el('readerScreen').hidden=false;state.open=true;document.body.style.overflow='hidden';
+        syncControls();el('readerScroller').scrollTop=0;updateProgress();el('closeReader').focus({preventScroll:true});play();
+      }
+      function closeReader(){pause();state.open=false;el('readerScreen').hidden=true;document.body.style.overflow='';el('startBtn').focus({preventScroll:true});store();}
+      el('scriptInput').value=typeof saved.text==='string'?saved.text:defaultText;
+      el('scriptInput').addEventListener('input',()=>{updateCount();store();setStatus('');});
+      el('exampleBtn').addEventListener('click',()=>{el('scriptInput').value=defaultText;updateCount();store();setStatus('تم وضع نص تجريبي.');});
+      el('clearBtn').addEventListener('click',()=>{if(!confirm('واش متأكد بغيتي تمسح النص؟'))return;el('scriptInput').value='';updateCount();store();setStatus('تم مسح النص.');el('scriptInput').focus();});
+      el('speedRange').addEventListener('input',e=>setSpeed(Number(e.target.value)));
+      el('speedDown').addEventListener('click',()=>setSpeed(state.speed-4));
+      el('speedUp').addEventListener('click',()=>setSpeed(state.speed+4));
+      el('sizeRange').addEventListener('input',e=>setSize(Number(e.target.value)));
+      el('sizeDown').addEventListener('click',()=>setSize(state.size-2));
+      el('sizeUp').addEventListener('click',()=>setSize(state.size+2));
+      el('mirrorInput').addEventListener('change',e=>{state.mirror=e.target.checked;syncControls();});
+      el('lightInput').addEventListener('change',e=>{state.light=e.target.checked;syncControls();});
+      el('resetPrefsBtn').addEventListener('click',()=>{Object.assign(state,defaults);syncControls();setStatus('رجعات الإعدادات الافتراضية، والسكريبت بقى كيف ما هو.');});
+      el('startBtn').addEventListener('click',openReader);
+      el('closeReader').addEventListener('click',closeReader);
+      el('playPauseBtn').addEventListener('click',toggle);
+      el('restartBtn').addEventListener('click',()=>{pause();el('readerScroller').scrollTop=0;updateProgress();play();});
+      el('readerSlower').addEventListener('click',()=>setSpeed(state.speed-4));
+      el('readerFaster').addEventListener('click',()=>setSpeed(state.speed+4));
+      el('readerScroller').addEventListener('click',toggle);
+      el('readerScroller').addEventListener('scroll',updateProgress,{passive:true});
+      document.addEventListener('keydown',e=>{
+        if(!state.open)return;
+        if(e.key==='Escape'){e.preventDefault();closeReader();return;}
+        if(e.code==='Space' && !['BUTTON','TEXTAREA','INPUT'].includes(document.activeElement.tagName)) {e.preventDefault();toggle();}
+      });
+      document.addEventListener('visibilitychange',()=>{if(document.hidden && state.playing)pause();});
+      window.addEventListener('pagehide',()=>{pause();store();});
+      updateCount();syncControls();
+    })();
+  </script>
+</body>
+</html>

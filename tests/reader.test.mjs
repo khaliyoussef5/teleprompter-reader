@@ -169,3 +169,39 @@ test('reader speed remains visible on compact screens', () => {
   assert(html.includes('id="readerSpeedOutput"'));
   assert(!html.includes('.read-speed{display:none}'));
 });
+
+test('focus mode defaults on and can be toggled without leaving the reader', () => {
+  const r = reader();
+  assert.equal(r.node('focusInput').checked, true);
+  assert.equal(r.node('focusToggleBtn').attributes['aria-pressed'], 'true');
+  r.click('startBtn');
+  assert(r.node('readerScreen').classList.contains('focus-on'));
+  r.tick(61);
+  const top = r.node('readerScroller').scrollTop;
+  r.click('focusToggleBtn');
+  assert.equal(r.node('focusInput').checked, false);
+  assert.equal(r.node('focusToggleBtn').attributes['aria-pressed'], 'false');
+  assert.equal(r.node('readerScreen').classList.contains('focus-on'), false);
+  assert.equal(r.node('readerScroller').scrollTop, top);
+  assert.equal(r.frames.size, 1);
+  r.tick(60);
+  assert(Math.abs(r.node('readerScroller').scrollTop - top - 30) <= 1);
+});
+
+test('focus preference persists and works with mirror/light and live speed', () => {
+  const r = reader();
+  r.node('focusInput').checked = false; r.node('focusInput').emit('change');
+  assert.equal(r.stored().focus, false);
+  const reloaded = reader({ saved: JSON.stringify(r.stored()) });
+  reloaded.click('startBtn');
+  assert.equal(reloaded.node('readerScreen').classList.contains('focus-on'), false);
+  reloaded.click('focusToggleBtn');
+  assert.equal(reloaded.stored().focus, true);
+  reloaded.input('readerSpeedRange', '160');
+  reloaded.node('mirrorInput').checked = true; reloaded.node('mirrorInput').emit('change');
+  reloaded.node('lightInput').checked = true; reloaded.node('lightInput').emit('change');
+  assert(reloaded.node('readerScreen').classList.contains('focus-on'));
+  assert(reloaded.node('readerScreen').classList.contains('light'));
+  assert(reloaded.node('readerText').classList.contains('mirrored'));
+  assert.equal(reloaded.node('speedRange').value, 160);
+});

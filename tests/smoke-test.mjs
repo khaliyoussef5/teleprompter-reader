@@ -7,7 +7,8 @@ const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
 const required = [
   'scriptInput', 'speedRange', 'sizeRange', 'startBtn', 'readerScreen',
   'readerScroller', 'readerText', 'playPauseBtn', 'closeReader',
-  'readerSlower', 'readerFaster', 'restartBtn', 'mirrorInput', 'lightInput'
+  'readerSlower', 'readerFaster', 'restartBtn', 'mirrorInput', 'lightInput',
+  'focusInput', 'focusToggleBtn', 'readerSpeedRange'
 ];
 for (const id of required) {
   assert(ids.includes(id), `Missing element: ${id}`);

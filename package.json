@@ -1,0 +1,10 @@
+{
+  "name": "teleprompter-reader",
+  "private": true,
+  "version": "1.0.0",
+  "description": "قارئ السكريبت بالتمرير التلقائي والتحكم في السرعة",
+  "scripts": {
+    "test": "node tests/smoke-test.mjs",
+    "build": "npm test"
+  }
+}

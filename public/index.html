@@ -63,14 +63,12 @@
     .reader-scroller::-webkit-scrollbar{display:none}
     .reader-text{max-width:1100px;width:100%;margin:auto;white-space:pre-wrap;overflow-wrap:anywhere;padding:26vh clamp(24px,7vw,95px) 62vh;padding-block:26dvh 62dvh;text-align:right;font-size:var(--read-size);line-height:1.75;font-weight:600;color:var(--reader-text);direction:rtl}
     .reader-text.mirrored{transform:scaleX(-1)}
-    .reader-guide{position:absolute;top:42%;right:0;left:0;border-top:1px dashed var(--reader-rule);opacity:.43;pointer-events:none}
-    /* Focus Mode uses a viewport-fixed soft mask: readable around the 42% guide,
-       muted above and below it. It works with RTL, mirror and either theme. */
+    /* Focus Mode highlights the central reading area using a soft text fade,
+       without drawing any horizontal line or overlay behind the letters. */
     .reader-screen.focus-on .reader-scroller{
       -webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,.34) 0%,rgba(0,0,0,.34) 20%,rgba(0,0,0,.7) 31%,#000 37%,#000 49%,rgba(0,0,0,.7) 59%,rgba(0,0,0,.34) 72%,rgba(0,0,0,.34) 100%);
       mask-image:linear-gradient(to bottom,rgba(0,0,0,.34) 0%,rgba(0,0,0,.34) 20%,rgba(0,0,0,.7) 31%,#000 37%,#000 49%,rgba(0,0,0,.7) 59%,rgba(0,0,0,.34) 72%,rgba(0,0,0,.34) 100%);
     }
-    .reader-screen.focus-on .reader-guide{border-top:2px solid var(--reader-rule);opacity:.85}
     .reader-top-actions{display:flex;align-items:center;gap:7px;flex:none}
     .reader-top .focus-toggle[aria-pressed="true"]{border-color:var(--reader-rule);background:color-mix(in srgb,var(--reader-rule) 22%,var(--reader-bg));font-weight:700}
     .reader-bottom{flex:none;background:var(--reader-bg);border-top:1px solid color-mix(in srgb,var(--reader-text) 16%,transparent);padding:9px 14px calc(10px + env(safe-area-inset-bottom));z-index:2}
@@ -120,7 +118,7 @@
         <div class="control-group">
           <div class="setting-row"><label for="mirrorInput">عكس النص أفقياً (للمرآة)</label><input type="checkbox" id="mirrorInput"></div>
           <div class="setting-row"><label for="focusInput">وضع التركيز: وضّح النص قرب خط القراءة</label><input type="checkbox" id="focusInput" checked></div>
-          <p class="help">وضع التركيز كيخفّف النص البعيد عن خط القراءة بلا ما يبدّل سرعة التمرير.</p>
+          <p class="help">وضع التركيز كيخفّف النص البعيد تدريجياً، بلا خطوط فوق النص وبلا تغيير سرعة التمرير.</p>
           <div class="setting-row"><label for="lightInput">خلفية فاتحة أثناء القراءة</label><input type="checkbox" id="lightInput"></div>
           <p class="help">الوضع الافتراضي: خلفية سوداء ونص أبيض باش تكون القراءة مريحة.</p>
         </div>
@@ -137,7 +135,6 @@
     <div id="readerScroller" class="reader-scroller" tabindex="0" aria-label="نص السكريبت القابل للتمرير">
       <div id="readerText" class="reader-text"></div>
     </div>
-    <div class="reader-guide" aria-hidden="true"></div>
     </div>
     <div class="reader-bottom">
       <div class="reader-speed-control"><label for="readerSpeedRange">سرعة القراءة</label><input type="range" id="readerSpeedRange" min="0" max="240" step="2" value="30" aria-label="تحكم مباشر في سرعة التمرير أثناء القراءة"><output for="readerSpeedRange" id="readerSpeedOutput">30 px/s</output></div>
